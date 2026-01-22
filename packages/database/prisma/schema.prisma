@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  PLAYER
+  FIELD_OWNER
+  ADMIN
+}
+
+enum SportType {
+  FUTSAL
+  BADMINTON
+  BASKETBALL
+  VOLLEYBALL
+  SOCCER
+  MINI_SOCCER
+  TENNIS
+  PADEL
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+// Models
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  phone     String?
+  role      UserRole @default(PLAYER)
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  venues    Venue[]
+  bookings  Booking[]
+  matches   Match[]   @relation("MatchCreator")
+  communities CommunityMember[]
+}
+
+model Venue {
+  id          String   @id @default(uuid())
+  ownerId     String
+  name        String
+  slug        String   @unique
+  description String?
+  location    String
+  latitude    Float?
+  longitude   Float?
+  images      String[] // Array of image URLs
+  facilities  String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner   User    @relation(fields: [ownerId], references: [id])
+  fields  Field[]
+}
+
+model Field {
+  id        String    @id @default(uuid())
+  venueId   String
+  name      String    // e.g. "Lapangan 1 (Vinyl)"
+  sportType SportType
+  pricePerHour Int
+  
+  venue     Venue     @relation(fields: [venueId], references: [id])
+  schedule  Schedule[]
+  bookings  Booking[]
+}
+
+model Schedule {
+  id        String   @id @default(uuid())
+  fieldId   String
+  dayOfWeek Int      // 0 = Sunday, 1 = Monday, etc.
+  startTime String   // "08:00"
+  endTime   String   // "22:00"
+  isAvailable Boolean @default(true)
+
+  field     Field    @relation(fields: [fieldId], references: [id])
+}
+
+model Booking {
+  id        String        @id @default(uuid())
+  userId    String
+  fieldId   String
+  startTime DateTime
+  endTime   DateTime
+  totalPrice Int
+  status    BookingStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+
+  user      User          @relation(fields: [userId], references: [id])
+  field     Field         @relation(fields: [fieldId], references: [id])
+}
+
+model Match {
+  id          String    @id @default(uuid())
+  creatorId   String
+  title       String
+  date        DateTime
+  location    String    // Can be a free text or linked to a Field
+  sportType   SportType
+  maxPlayers  Int
+  pricePerPlayer Int?
+  description String?
+  
+  creator     User      @relation("MatchCreator", fields: [creatorId], references: [id])
+}
+
+model Community {
+  id          String    @id @default(uuid())
+  name        String
+  sportType   SportType
+  description String?
+  members     CommunityMember[]
+}
+
+model CommunityMember {
+  id          String    @id @default(uuid())
+  communityId String
+  userId      String
+  role        String    // "ADMIN", "MEMBER"
+
+  community   Community @relation(fields: [communityId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model CoverageArea {
+  id        String   @id @default(uuid())
+  name      String   // e.g., "Jakarta Selatan"
+  city      String   // Main city name
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
